@@ -20,7 +20,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "expo.modules.healthconnect.example"
+      "package": "expo.modules.healthconnect.example",
+      "permissions": [
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.WRITE_STEPS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
