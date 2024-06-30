@@ -7,77 +7,107 @@ import {
 
 const pkg = require("../package.json");
 
-const { getMainApplicationOrThrow } = AndroidConfig.Manifest;
+const { getMainActivityOrThrow, getMainApplicationOrThrow } =
+  AndroidConfig.Manifest;
+
+const hasIntentFilter = (
+  androidName: string,
+  intentFilters: AndroidConfig.Manifest.ManifestIntentFilter[]
+) => {
+  return intentFilters.some((intentFilter) => {
+    return intentFilter.action?.some((action) => {
+      return action.$["android:name"] === androidName;
+    });
+  });
+};
+
+type ManifestActivityAlias = AndroidConfig.Manifest.ManifestIntentFilter[];
+
+const hasActivityAlias = (
+  androidName: string,
+  activityAliases: ManifestActivityAlias
+) => {
+  return activityAliases.some((activityAlias) => {
+    // @ts-ignore - Expo does not have types for activity-alias
+    return activityAlias.$["android:name"] === androidName;
+  });
+};
 
 const withHealthConnect: ConfigPlugin = (config) => {
   // 1 - Add the permissions rationale activity to the AndroidManifest.xml
   config = withAndroidManifest(config, async (config) => {
-    const application = getMainApplicationOrThrow(config.modResults);
-
-    if (!application) {
-      console.warn(
-        "[Health Connect] No Application found in AndroidManifest.xml."
-      );
-      console.warn("[Health Connect] You need to setup the library manually.");
-      return config;
-    }
-
-    if (!application.activity) {
-      console.warn(
-        "[Health Connect] No Activity found in AndroidManifest.xml."
-      );
-      console.warn("[Health Connect] You need to setup the library manually.");
-      return config;
-    }
+    const mainApplication = getMainApplicationOrThrow(config.modResults);
+    const mainActivity = getMainActivityOrThrow(config.modResults);
 
     // For supported versions through Android 13, create an activity to show the rationale
     // of Health Connect permissions once users click the privacy policy link.
-    const inntentFilters = application.activity[0]["intent-filter"];
-    inntentFilters?.push({
-      action: [
-        {
-          $: {
-            "android:name": "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE",
-          },
-        },
-      ],
-    });
+    const intentFilters = mainActivity["intent-filter"];
 
-    const targetActivity = application.activity[0].$["android:name"];
+    if (!intentFilters) {
+      return config;
+    }
+
+    // Check if the intent filter already exists
+    if (
+      !hasIntentFilter(
+        "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE",
+        intentFilters,
+      )
+    ) {
+      intentFilters?.push({
+        action: [
+          {
+            $: {
+              "android:name":
+                "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE",
+            },
+          },
+        ],
+      });
+    }
+
+    const targetActivity = mainActivity.$["android:name"];
 
     // For versions starting Android 14, create an activity alias to show the rationale
     // of Health Connect permissions once users click the privacy policy link.
     // @ts-ignore - Expo does not have types for security-alias
-    if (!application["activity-alias"]) application["activity-alias"] = [];
+    if (!("activity-alias" in mainApplication)) {
+      // @ts-ignore - Expo does not have types for security-alias
+      mainApplication["activity-alias"] = [];
+    }
 
-    // @ts-ignore
-    const activityAliases = application["activity-alias"];
-    activityAliases.push({
-      $: {
-        "android:name": "ViewPermissionUsageActivity",
-        "android:exported": "true",
-        "android:targetActivity": targetActivity,
-        "android:permission": "android.permission.START_VIEW_PERMISSION_USAGE",
-      },
-      "intent-filter": [
-        {
-          action: [
-            {
-              $: {
-                "android:name": "android.intent.action.VIEW_PERMISSION_USAGE",
-              },
-            },
-          ],
-          category: [
-            {
-              $: {
-                "android:name": "android.intent.category.HEALTH_PERMISSIONS",
-              },
-            },
-          ],
+    // @ts-ignore - Expo does not have types for security-alias
+    const activityAliases = mainApplication["activity-alias"];
+
+    if (!hasActivityAlias("ViewPermissionUsageActivity", activityAliases)) {
+      activityAliases.push({
+        $: {
+          "android:name": "ViewPermissionUsageActivity",
+          "android:exported": "true",
+          "android:targetActivity": targetActivity,
+          "android:permission":
+            "android.permission.START_VIEW_PERMISSION_USAGE",
         },
-      ],
-    });
+        "intent-filter": [
+          {
+            action: [
+              {
+                $: {
+                  "android:name": "android.intent.action.VIEW_PERMISSION_USAGE",
+                },
+              },
+            ],
+            category: [
+              {
+                $: {
+                  "android:name": "android.intent.category.HEALTH_PERMISSIONS",
+                },
+              },
+            ],
+          },
+        ],
+      });
+    }
 
     return config;
   });
