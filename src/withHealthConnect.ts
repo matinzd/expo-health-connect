@@ -43,12 +43,13 @@ const withHealthConnect: ConfigPlugin = (config) => {
     // of Health Connect permissions once users click the privacy policy link.
     const intentFilters = mainActivity["intent-filter"];
 
-    if (!intentFilters) {
-      return config;
+    if (!mainActivity["intent-filter"]) {
+      mainActivity["intent-filter"] = [];
     }
 
     // Check if the intent filter already exists
     if (
+      intentFilters &&
       !hasIntentFilter(
         "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE",
         intentFilters,
