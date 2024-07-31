@@ -1,6 +1,6 @@
 {
   "name": "expo-health-connect",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Expo config plugin for react-native-health-connect",
   "main": "build/withHealthConnect.js",
   "types": "build/withHealthConnect.d.ts",
